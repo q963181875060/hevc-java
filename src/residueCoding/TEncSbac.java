@@ -2,6 +2,7 @@ package residueCoding;
 import entropyEncoder.EntropyEncoderHevc;
 import entropyEncoder.State;
 
+
 public class TEncSbac{
 	
 	//32*32的TU的块划分（不规则）
@@ -19,7 +20,20 @@ public class TEncSbac{
 	CodingParameters codingParameters;
 	
 	
-	
+	/**
+	 * 调用熵编码的顺序：
+	 * 1）最后一个非零元的位置
+	 * 2）4*4的groupFlag
+	 * 3）4*4的group内所有元素的sigFlag
+	 * 4）4*4内前8个元素的greaterThan1Flag
+	 * 5）一个greaterThan2Flag
+	 * 6）所有的符号位一起
+	 * 7）remainsAbs一起
+	 * 
+	 * @param pcCoef
+	 * @param compID
+	 * @throws Exception
+	 */
 	public void codeCoeffNxN(int[] pcCoef, int compID) throws Exception{
 		
 		
@@ -59,6 +73,7 @@ public class TEncSbac{
 	  //编码最后一个非零元素的位置
 	  int posLastY = posLast >> uiLog2BlockWidth;
 	  int posLastX = posLast - ( posLastY << uiLog2BlockWidth );
+	  //参照中文书262页
 	  codeLastSignificantXY(posLastX, posLastY, uiWidth, uiHeight, compID, codingParameters.scanType);
 
 	  //===== code significance flag =====
@@ -120,8 +135,8 @@ public class TEncSbac{
 	      int uiBlkPos, uiSig, uiCtxSig;
 	      for( ; iScanPosSig >= iSubPos; iScanPosSig-- )
 	      {
-	        uiBlkPos  = codingParameters.scan[ iScanPosSig ];
-	        uiSig     = (pcCoef[ uiBlkPos ] != 0)? 1 : 0;
+	        uiBlkPos  = codingParameters.scan[ iScanPosSig ];//uiBlkPos是顺序扫描的像素点的位置
+	        uiSig     = (pcCoef[ uiBlkPos ] != 0)? 1 : 0;//uiSig是此像素是否存在
 	        if( iScanPosSig > iSubPos || iSubSet == 0 || numNonZero  != 0)
 	        {
 	          uiCtxSig  = TComTrQuant.getSigCtxInc( patternSigCtx, codingParameters, iScanPosSig, uiLog2BlockWidth, uiLog2BlockHeight, compID );
@@ -245,7 +260,7 @@ public class TEncSbac{
 	  }
 	  else if (useLimitedPrefixLength)
 	  {
-	    int maximumPrefixLength = (32 - (ContextTables.COEF_REMAIN_BIN_REDUCTION + maxLog2TrDynamicRange));
+	    /*int maximumPrefixLength = (32 - (ContextTables.COEF_REMAIN_BIN_REDUCTION + maxLog2TrDynamicRange));
 
 	    int prefixLength = 0;
 	    int suffixLength = Integer.MAX_VALUE;
@@ -273,7 +288,7 @@ public class TEncSbac{
 	    int rParamBitMask     = (1 << rParam) - 1;
 
 	    m_pcBinIf.encodeBinsEP(  prefix,                                        totalPrefixLength      ); //prefix
-	    m_pcBinIf.encodeBinsEP(((suffix << rParam) | (symbol & rParamBitMask)), (suffixLength + rParam)); //separator, suffix, and rParam bits
+	    m_pcBinIf.encodeBinsEP(((suffix << rParam) | (symbol & rParamBitMask)), (suffixLength + rParam)); //separator, suffix, and rParam bits*/
 	  }
 	  else
 	  {

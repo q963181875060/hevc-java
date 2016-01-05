@@ -24,7 +24,16 @@ public class TComTrQuant {
 		  7, 7, 8, 8
 		};
 	
-	
+	/**
+	 * patternSigCtx是根据右边和下边的sigCoeffGroupFlag来计算的
+	 * 
+	 * @param sigCoeffGroupFlag
+	 * @param uiCGPosX
+	 * @param uiCGPosY
+	 * @param widthInGroups
+	 * @param heightInGroups
+	 * @return
+	 */
 	public static int calcPatternSigCtx( boolean[] sigCoeffGroupFlag, int uiCGPosX, int uiCGPosY, int widthInGroups, int heightInGroups )
 	{
 	  if ((widthInGroups <= 1) && (heightInGroups <= 1))
@@ -50,7 +59,10 @@ public class TComTrQuant {
 	  return sigRight + (sigLower << 1);
 	}
 	
-	/** Context derivation process of coeff_abs_significant_flag
+	/**
+	 *  Context derivation process of coeff_abs_significant_flag
+	 *  patternSigCtx是根据右边和下边的sigCoeffGroupFlag来计算的
+	 * 
 	 * \param uiSigCoeffGroupFlag significance map of L1
 	 * \param uiCGPosX column of current scan position
 	 * \param uiCGPosY row of current scan position
@@ -80,6 +92,9 @@ public class TComTrQuant {
 	}
 	
 	/** Context derivation process of coeff_abs_significant_flag
+	 *  不用到其他地方的信息
+	 * 
+	 * 
 	 * \param patternSigCtx pattern for current coefficient group
 	 * \param codingParameters coding parameters for the TU (includes the scan)
 	 * \param scanPosition current position in scan order
@@ -102,8 +117,8 @@ public class TComTrQuant {
 	  }
 
 	   int rasterPosition = codingParameters.scan[scanPosition];
-	   int posY           = rasterPosition >> log2BlockWidth;
-	   int posX           = rasterPosition - (posY << log2BlockWidth);
+	   int posY           = rasterPosition >> log2BlockWidth;//顺序扫描的位置
+	   int posX           = rasterPosition - (posY << log2BlockWidth);//顺序扫描的位置
 
 	  if ((posX + posY) == 0)
 	  {
