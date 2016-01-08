@@ -78,6 +78,9 @@ public class Main {
 				}
 			}
 			TEncSbac.m_pcBinIf.encodeBinTrm(1);
+			TEncSbac.m_pcBinIf.finish();
+			TEncSbac.m_pcBinIf.bottomPartFinishAndWriteSingleOneAndAlignZero();
+			TEncSbac.m_pcBinIf.checkAnswer();
 			
 			//bw.close();
 		}catch(Exception ex){

@@ -177,7 +177,7 @@ public class TEncSbac{
 			m_pcBinIf.encodeBin( uiSymbol, baseCtxMod + c1);
 	        if( uiSymbol == 1)
 	        {
-	          c1 = 0;
+	          c1 = 0;//如果存在绝对值大于1的残差，c1=0
 
 	          if (firstC2FlagIdx == -1)
 	          {
@@ -194,7 +194,7 @@ public class TEncSbac{
 	        }
 	      }
 
-	      if (c1 == 0)
+	      if (c1 == 0)//如果存在绝对值大于1的残差，c1=0
 	      {
 	        baseCtxMod = 174 + (ContextTables.NUM_ABS_FLAG_CTX_PER_SET * uiCtxSet);
 	        if ( firstC2FlagIdx != -1)
