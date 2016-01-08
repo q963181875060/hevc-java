@@ -175,20 +175,20 @@ public class TEncSbac{
 	      {
 	        int uiSymbol = absCoeff[ idx ] > 1 ? 1:0;
 			m_pcBinIf.encodeBin( uiSymbol, baseCtxMod + c1);
-	        if( uiSymbol == 1)
+	        if( uiSymbol == 1)//isBranch1
 	        {
 	          c1 = 0;//如果存在绝对值大于1的残差，c1=0
 
-	          if (firstC2FlagIdx == -1)
+	          if (firstC2FlagIdx == -1)//isBranch2
 	          {
 	            firstC2FlagIdx = idx;
 	          }
-	          else //if a greater-than-one has been encountered already this group
+	          else //isBranch3 //if a greater-than-one has been encountered already this group
 	          {
 	            escapeDataPresentInGroup = true;
 	          }
 	        }
-	        else if( (c1 < 3) && (c1 > 0) )
+	        else if( (c1 < 3) && (c1 > 0) )//isBranch4
 	        {
 	          c1++;
 	        }
@@ -197,11 +197,11 @@ public class TEncSbac{
 	      if (c1 == 0)//如果存在绝对值大于1的残差，c1=0
 	      {
 	        baseCtxMod = 174 + (ContextTables.NUM_ABS_FLAG_CTX_PER_SET * uiCtxSet);
-	        if ( firstC2FlagIdx != -1)
+	        if ( firstC2FlagIdx != -1)//isBranch5
 	        {
 	          int symbol = absCoeff[ firstC2FlagIdx ] > 2 ? 1 : 0;
 	          m_pcBinIf.encodeBin( symbol,  baseCtxMod);
-	          if (symbol != 0)
+	          if (symbol != 0)//isBranch6
 	          {
 	            escapeDataPresentInGroup = true;
 	          }
@@ -209,10 +209,11 @@ public class TEncSbac{
 	      }
 
 	      escapeDataPresentInGroup = escapeDataPresentInGroup || (numNonZero > ContextTables.C1FLAG_NUMBER); 
+	      //next to do
 	      m_pcBinIf.encodeBinsEP( coeffSigns, numNonZero );
 
 	      int iFirstCoeff2 = 1;
-	      if (escapeDataPresentInGroup)
+	      if (escapeDataPresentInGroup)//在FPGA中不需要判断这个
 	      {
 	        for ( int idx = 0; idx < numNonZero; idx++ )
 	        {
@@ -277,7 +278,7 @@ public class TEncSbac{
 	      {
 	        prefixLength++;
 	      }
-
+ 
 	      suffixLength = prefixLength + 1; //+1 for the separator bit
 	    }
 

@@ -110,11 +110,11 @@ public class TComTrQuant {
 	                                    int                        log2BlockHeight,
 	                                    int                			chanType)
 	{
-	  if (codingParameters.firstSignificanceMapContext == ContextTables.significanceMapContextSetStart[chanType][3])
+	 /* if (codingParameters.firstSignificanceMapContext == ContextTables.significanceMapContextSetStart[chanType][3])
 	  {
 	    //single context mode
 	    return ContextTables.significanceMapContextSetStart[chanType][3];
-	  }
+	  }*/
 
 	   int rasterPosition = codingParameters.scan[scanPosition];
 	   int posY           = rasterPosition >> log2BlockWidth;//À≥–Ú…®√ËµƒŒª÷√
@@ -127,11 +127,11 @@ public class TComTrQuant {
 
 	  int offset = Integer.MAX_VALUE;
 
-	  if ((log2BlockWidth == 2) && (log2BlockHeight == 2)) //4x4
+	  /*if ((log2BlockWidth == 2) && (log2BlockHeight == 2)) //4x4
 	  {
 	    offset = ctxIndMap4x4[ (4 * posY) + posX ];
 	  }
-	  else
+	  else*/
 	  {
 	    int cnt = 0;
 
