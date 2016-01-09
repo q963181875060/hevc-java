@@ -53,7 +53,7 @@ public class EntropyEncoderHevc {
 	
 	public void outputByte(int db){
 		outputBytes.add(db);
-	    if(stdOutputBytes == null){
+	    /*if(stdOutputBytes == null){
 	    	return;
 	    }
 	    if(outputBytes.size()>stdOutputBytes.length){
@@ -64,7 +64,7 @@ public class EntropyEncoderHevc {
 	    if(stdOutputBytes[i]!=db){
 	    	//ipdb.set_trace()
 	    	System.out.println("stdOutputBytes[" + i + "]="+this.stdOutputBytes[i]+" outputBytes[" + i + "]="+this.outputBytes.get(i));
-	    }
+	    }*/
 	}
 	
 	public void finish(){

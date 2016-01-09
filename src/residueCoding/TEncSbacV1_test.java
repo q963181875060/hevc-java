@@ -2,8 +2,12 @@ package residueCoding;
 import entropyEncoder.EntropyEncoderHevc;
 import entropyEncoder.State;
 
-
-public class TEncSbac{
+/**
+ * 用于给出CPU版代码的输出，与V1做正确性验证
+ * @author OwenLiu
+ *
+ */
+public class TEncSbacV1_test{
 	
 	//32*32的TU的块划分（不规则）
 	public static int[] g_uiGroupIdx = {0,1,2,3,4,4,5,5,6,6,6,6,7,7,7,7,8,8,8,8,8,8,8,8,9,9,9,9,9,9,9,9};
@@ -19,6 +23,19 @@ public class TEncSbac{
 	
 	CodingParameters codingParameters;
 	
+	//buffer
+	int[] coded_sub_block_flag_buffer = 			new int[3];// the size should be narrowed down later, 3 ints are a unit:(function, val,param)
+	int[] sig_coeff_flag_buffer = 					new int[3*16];
+	int[] coeff_abs_level_greater1_flag_buffer = 	new int[3*16];
+	int[] escapeDataPresentInGroup_buffer = 		new int[3];// 在CPU中判断remaining的offset，所以输出这个
+	int[] coeff_abs_level_greater2_flag_buffer = 	new int[3];
+	int[] coeff_sign_flag_buffer = 					new int[3];
+	int[] coeff_abs_level_remaining_buffer = 		new int[3*2*16];
+	
+	final int DO_NOT_OUTPUT 			= 0;
+	final int ENCODE_BIN				= 0;
+	final int ENCODE_BIN_EP				= 1;
+	final int ENCODE_BINS_EP			= 2;
 	
 	/**
 	 * 调用熵编码的顺序：
@@ -69,8 +86,7 @@ public class TEncSbac{
 	      uiNumSig--;
 	    }
 	  } while ( uiNumSig > 0 );//uiNumSig是总共的非零元素的个数
-	  
-	  
+
 	  //编码最后一个非零元素的位置
 	  int posLastY = posLast >> uiLog2BlockWidth;
 	  int posLastX = posLast - ( posLastY << uiLog2BlockWidth );
@@ -87,7 +103,7 @@ public class TEncSbac{
 	  int uiGoRiceParam       = 0;
 	  int  iScanPosSig         = scanPosLast;
 
-	  for( int iSubSet = iLastScanSet; iSubSet >= 0; iSubSet-- )
+	  for( int iSubSet = iLastScanSet; iSubSet >= iLastScanSet; iSubSet-- )
 	  {
 	    int numNonZero = 0;
 	    int  iSubPos   = iSubSet << MLS_CG_SIZE;//iSubpos是subset的第一个像素点的位置,对角扫描
@@ -102,7 +118,7 @@ public class TEncSbac{
 
 	    boolean escapeDataPresentInGroup = false;
 
-	    if( iScanPosSig == scanPosLast )
+	   /* if( iScanPosSig == scanPosLast )
 	    {
 	      absCoeff[ 0 ] = (int)(Math.abs( pcCoef[ posLast ] ));
 	      coeffSigns    = ( pcCoef[ posLast ] < 0 )? 1 : 0;
@@ -110,22 +126,25 @@ public class TEncSbac{
 	      lastNZPosInCG  = iScanPosSig;
 	      firstNZPosInCG = iScanPosSig;
 	      iScanPosSig--;
-	    }
+	    }*/
 
 	    // encode significant_coeffgroup_flag
 	    int iCGBlkPos = codingParameters.scanCG[ iSubSet ];//iCGBlkPos是4*4顺序扫描的位置
 	    int iCGPosY   = iCGBlkPos / codingParameters.widthInGroups;//4*4的顺序扫描的垂直位置
 	    int iCGPosX   = iCGBlkPos - (iCGPosY * codingParameters.widthInGroups);//4*4的顺序扫描的水平位置
 
-	    if( iSubSet == iLastScanSet || iSubSet == 0)
+	    /*if( iSubSet == iLastScanSet || iSubSet == 0)
 	    {
 	      uiSigCoeffGroupFlag[ iCGBlkPos ] = true;
 	    }
-	    else
+	    else*/
 	    {
 	      boolean uiSigCoeffGroup   = (uiSigCoeffGroupFlag[ iCGBlkPos ] != false);
 	      int uiCtxSig  = TComTrQuant.getSigCoeffGroupCtxInc( uiSigCoeffGroupFlag, iCGPosX, iCGPosY, codingParameters.widthInGroups, codingParameters.heightInGroups );
 	      m_pcBinIf.encodeBin( uiSigCoeffGroup?1:0,  baseCoeffGroupCtxIdx +  uiCtxSig);
+	      this.coded_sub_block_flag_buffer[0] = this.ENCODE_BIN;
+	      this.coded_sub_block_flag_buffer[1] = uiSigCoeffGroup?1:0;
+	      this.coded_sub_block_flag_buffer[2] = baseCoeffGroupCtxIdx +  uiCtxSig;
 	    }
 
 	    // encode significant_coeff_flag
@@ -136,14 +155,15 @@ public class TEncSbac{
 	      int uiBlkPos, uiSig, uiCtxSig;
 	      for( ; iScanPosSig >= iSubPos; iScanPosSig-- )
 	      {
-	    	
 	        uiBlkPos  = codingParameters.scan[ iScanPosSig ];//uiBlkPos是顺序扫描的像素点的位置
 	        uiSig     = (pcCoef[ uiBlkPos ] != 0)? 1 : 0;//uiSig是此像素是否存在
-	       // System.out.print(pcCoef[ uiBlkPos ]+",");
 	        if( iScanPosSig > iSubPos || iSubSet == 0 || numNonZero  != 0)
 	        {
 	          uiCtxSig  = TComTrQuant.getSigCtxInc( patternSigCtx, codingParameters, iScanPosSig, uiLog2BlockWidth, uiLog2BlockHeight, compID );
 	          m_pcBinIf.encodeBin( uiSig, baseCtxIdx+ uiCtxSig);
+	          this.sig_coeff_flag_buffer[(iSubPos + 15 - iScanPosSig) * 3] = this.ENCODE_BIN;
+	          this.sig_coeff_flag_buffer[(iSubPos + 15 - iScanPosSig) * 3 + 1] = uiSig;
+	          this.sig_coeff_flag_buffer[(iSubPos + 15 - iScanPosSig) * 3 + 2] = baseCtxIdx+ uiCtxSig;
 	        }
 	        if( uiSig == 1)
 	        {
@@ -178,6 +198,10 @@ public class TEncSbac{
 	      {
 	        int uiSymbol = absCoeff[ idx ] > 1 ? 1:0;
 			m_pcBinIf.encodeBin( uiSymbol, baseCtxMod + c1);
+			this.coeff_abs_level_greater1_flag_buffer[idx*3] = this.ENCODE_BIN;
+			this.coeff_abs_level_greater1_flag_buffer[idx*3+1] = uiSymbol;
+			this.coeff_abs_level_greater1_flag_buffer[idx*3+2] = baseCtxMod + c1;
+			
 	        if( uiSymbol == 1)//isBranch1
 	        {
 	          c1 = 0;//如果存在绝对值大于1的残差，c1=0
@@ -204,6 +228,10 @@ public class TEncSbac{
 	        {
 	          int symbol = absCoeff[ firstC2FlagIdx ] > 2 ? 1 : 0;
 	          m_pcBinIf.encodeBin( symbol,  baseCtxMod);
+	          this.coeff_abs_level_greater2_flag_buffer[0] = this.ENCODE_BIN;
+	          this.coeff_abs_level_greater2_flag_buffer[1] = symbol;
+	          this.coeff_abs_level_greater2_flag_buffer[2] = baseCtxMod;
+	          
 	          if (symbol != 0)//isBranch6
 	          {
 	            escapeDataPresentInGroup = true;
@@ -212,29 +240,31 @@ public class TEncSbac{
 	      }
 
 	      escapeDataPresentInGroup = escapeDataPresentInGroup || (numNonZero > ContextTables.C1FLAG_NUMBER); 
-	      //next to do, before keep going, check the accuracy of the codes
 	      m_pcBinIf.encodeBinsEP( coeffSigns, numNonZero );
+	      this.coeff_sign_flag_buffer[0] = this.ENCODE_BINS_EP;
+	      this.coeff_sign_flag_buffer[1] = coeffSigns;
+	      this.coeff_sign_flag_buffer[2] = numNonZero;
 
 	      int iFirstCoeff2 = 1;
-	      if (escapeDataPresentInGroup)//在FPGA中不需要判断这个
+	      if (escapeDataPresentInGroup)//在FPGA中不需要判断这个,当coeff_abs_level_greater1_flag不为零的个数大于1 || coeff_abs_level_greater2_flag==1 || numNonZero>8，此值为true
 	      {
 	        for ( int idx = 0; idx < numNonZero; idx++ )
 	        {
 	          int baseLevel  = (idx < ContextTables.C1FLAG_NUMBER)? (2 + iFirstCoeff2 ) : 1;
 
-	          if( absCoeff[ idx ] >= baseLevel)
+	          if( absCoeff[ idx ] >= baseLevel)//isBranch7
 	          {
 	            int escapeCodeValue = absCoeff[idx] - baseLevel;
 
-	            xWriteCoefRemainExGolomb( escapeCodeValue, uiGoRiceParam, false, 15 );
+	            xWriteCoefRemainExGolomb( escapeCodeValue, uiGoRiceParam, false, 15 , idx);
 
-	            if (absCoeff[idx] > (3 << uiGoRiceParam))
+	            if (absCoeff[idx] > (3 << uiGoRiceParam))//branch9
 	            {
 	              uiGoRiceParam = Math.min((uiGoRiceParam + 1), 4);
 	            }
 	          }
 
-	          if(absCoeff[ idx ] >= 2)
+	          if(absCoeff[ idx ] >= 2)//isBranch8
 	          {
 	            iFirstCoeff2 = 0;
 	          }
@@ -251,16 +281,23 @@ public class TEncSbac{
 	 * \param useLimitedPrefixLength
 	 * \param maxLog2TrDynamicRange 
 	 */
-	public void xWriteCoefRemainExGolomb( int symbol, int rParam, boolean useLimitedPrefixLength, int maxLog2TrDynamicRange ) throws Exception
+	public void xWriteCoefRemainExGolomb( int symbol, int rParam, boolean useLimitedPrefixLength, int maxLog2TrDynamicRange ,int idx) throws Exception
 	{
 	  int codeNumber  = (int)symbol;
 	  int length;
 
-	  if (codeNumber < (ContextTables.COEF_REMAIN_BIN_REDUCTION << rParam))
+	  if (codeNumber < (ContextTables.COEF_REMAIN_BIN_REDUCTION << rParam))//branch10
 	  {
 	    length = codeNumber>>rParam;
 	    m_pcBinIf.encodeBinsEP( (1<<(length+1))-2 , length+1);
 	    m_pcBinIf.encodeBinsEP((codeNumber%(1<<rParam)),rParam);
+	    this.coeff_abs_level_remaining_buffer[idx*6+0] = this.ENCODE_BINS_EP;
+	    this.coeff_abs_level_remaining_buffer[idx*6+1] = (1<<(length+1))-2;
+	    this.coeff_abs_level_remaining_buffer[idx*6+2] = length+1;
+	    this.coeff_abs_level_remaining_buffer[idx*6+3] = this.ENCODE_BINS_EP;
+	    this.coeff_abs_level_remaining_buffer[idx*6+4] = (codeNumber%(1<<rParam));
+	    this.coeff_abs_level_remaining_buffer[idx*6+5] = rParam;
+	    
 	  }
 	  else if (useLimitedPrefixLength)
 	  {
@@ -294,7 +331,7 @@ public class TEncSbac{
 	    m_pcBinIf.encodeBinsEP(  prefix,                                        totalPrefixLength      ); //prefix
 	    m_pcBinIf.encodeBinsEP(((suffix << rParam) | (symbol & rParamBitMask)), (suffixLength + rParam)); //separator, suffix, and rParam bits*/
 	  }
-	  else
+	  else//branch11
 	  {
 	    length = rParam;
 	    codeNumber  = codeNumber - ( ContextTables.COEF_REMAIN_BIN_REDUCTION << rParam);
@@ -306,6 +343,12 @@ public class TEncSbac{
 
 	    m_pcBinIf.encodeBinsEP((1<<(ContextTables.COEF_REMAIN_BIN_REDUCTION+length+1-rParam))-2,ContextTables.COEF_REMAIN_BIN_REDUCTION+length+1-rParam);
 	    m_pcBinIf.encodeBinsEP(codeNumber,length);
+	    this.coeff_abs_level_remaining_buffer[idx*6+0] = this.ENCODE_BINS_EP;
+	    this.coeff_abs_level_remaining_buffer[idx*6+1] = (1<<(ContextTables.COEF_REMAIN_BIN_REDUCTION+length+1-rParam))-2;
+	    this.coeff_abs_level_remaining_buffer[idx*6+2] = ContextTables.COEF_REMAIN_BIN_REDUCTION+length+1-rParam;
+	    this.coeff_abs_level_remaining_buffer[idx*6+3] = this.ENCODE_BINS_EP;
+	    this.coeff_abs_level_remaining_buffer[idx*6+4] = codeNumber;
+	    this.coeff_abs_level_remaining_buffer[idx*6+5] = length;
 	  }
 	}
 	
