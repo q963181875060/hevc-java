@@ -70,6 +70,10 @@ public class TEncSbac{
 	    }
 	  } while ( uiNumSig > 0 );//uiNumSig是总共的非零元素的个数
 	  
+	  for(int i=0;i<16;i++){
+		  System.out.print(pcCoef[codingParameters.scan[scanPosLast-i]]+",");
+	  }
+	  System.out.println();
 	  
 	  //编码最后一个非零元素的位置
 	  int posLastY = posLast >> uiLog2BlockWidth;
