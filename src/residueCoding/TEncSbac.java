@@ -30,6 +30,11 @@ public class TEncSbac{
 	 * 6）所有的符号位一起
 	 * 7）remainsAbs一起
 	 * 
+	 * 特殊情况：
+	 * 1）lastScanPos所在的4*4块，以及第一个4*4块的groupFlag不编码，默认为1
+	 * 2）lastScanPos的sigFlag不编码，默认为1
+	 * 3）如果存在greaterThan1Flag，编码greaterThan2Flag，否则不存在
+	 * 4）当coeff_abs_level_greater1_flag不为零的个数大于1 || coeff_abs_level_greater2_flag==1 || numNonZero>8时，不为0的remainsAbs为有效编码
 	 * @param pcCoef
 	 * @param compID
 	 * @throws Exception
@@ -70,7 +75,7 @@ public class TEncSbac{
 	    }
 	  } while ( uiNumSig > 0 );//uiNumSig是总共的非零元素的个数
 	  
-	  for(int i=0;i<16;i++){
+	  for(int i=0;i<1024;i++){
 		  System.out.print(pcCoef[codingParameters.scan[scanPosLast-i]]+",");
 	  }
 	  System.out.println();
@@ -264,7 +269,7 @@ public class TEncSbac{
 	  {
 	    length = codeNumber>>rParam;
 	    m_pcBinIf.encodeBinsEP( (1<<(length+1))-2 , length+1);
-	    m_pcBinIf.encodeBinsEP((codeNumber%(1<<rParam)),rParam);
+	    m_pcBinIf.encodeBinsEP((codeNumber & ((1<<rParam) - 1)),rParam);
 	  }
 	  else if (useLimitedPrefixLength)
 	  {

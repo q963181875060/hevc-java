@@ -1,4 +1,6 @@
 package residueCoding;
+import java.util.ArrayList;
+
 import entropyEncoder.EntropyEncoderHevc;
 import entropyEncoder.State;
 
@@ -31,11 +33,12 @@ public class TEncSbacV1_test{
 	int[] coeff_abs_level_greater2_flag_buffer = 	new int[3];
 	int[] coeff_sign_flag_buffer = 					new int[3];
 	int[] coeff_abs_level_remaining_buffer = 		new int[3*2*16];
+	ArrayList<Long> buffer =						new ArrayList<>();
 	
 	final int DO_NOT_OUTPUT 			= 0;
 	final int ENCODE_BIN				= 0;
-	final int ENCODE_BIN_EP				= 1;
-	final int ENCODE_BINS_EP			= 2;
+	//final int ENCODE_BIN_EP				= 1;
+	final int ENCODE_BINS_EP			= 1;
 	
 	/**
 	 * 调用熵编码的顺序：
@@ -47,6 +50,11 @@ public class TEncSbacV1_test{
 	 * 6）所有的符号位一起
 	 * 7）remainsAbs一起
 	 * 
+	 * 特殊情况：
+	 * 1）lastScanPos所在的4*4块，以及第一个4*4块的groupFlag不编码，默认为1
+	 * 2）lastScanPos的sigFlag不编码，默认为1
+	 * 3）如果存在greaterThan1Flag，编码greaterThan2Flag，否则不存在
+	 * 4）当coeff_abs_level_greater1_flag不为零的个数大于1 || coeff_abs_level_greater2_flag==1 || numNonZero>8时，不为0的remainsAbs为有效编码
 	 * @param pcCoef
 	 * @param compID
 	 * @throws Exception
@@ -103,7 +111,7 @@ public class TEncSbacV1_test{
 	  int uiGoRiceParam       = 0;
 	  int  iScanPosSig         = scanPosLast;
 
-	  for( int iSubSet = iLastScanSet; iSubSet >= iLastScanSet; iSubSet-- )
+	  for( int iSubSet = iLastScanSet; iSubSet >= 0; iSubSet-- )
 	  {
 	    int numNonZero = 0;
 	    int  iSubPos   = iSubSet << MLS_CG_SIZE;//iSubpos是subset的第一个像素点的位置,对角扫描
@@ -118,7 +126,7 @@ public class TEncSbacV1_test{
 
 	    boolean escapeDataPresentInGroup = false;
 
-	   /* if( iScanPosSig == scanPosLast )
+	    if( iScanPosSig == scanPosLast )
 	    {
 	      absCoeff[ 0 ] = (int)(Math.abs( pcCoef[ posLast ] ));
 	      coeffSigns    = ( pcCoef[ posLast ] < 0 )? 1 : 0;
@@ -126,18 +134,18 @@ public class TEncSbacV1_test{
 	      lastNZPosInCG  = iScanPosSig;
 	      firstNZPosInCG = iScanPosSig;
 	      iScanPosSig--;
-	    }*/
+	    }
 
 	    // encode significant_coeffgroup_flag
 	    int iCGBlkPos = codingParameters.scanCG[ iSubSet ];//iCGBlkPos是4*4顺序扫描的位置
 	    int iCGPosY   = iCGBlkPos / codingParameters.widthInGroups;//4*4的顺序扫描的垂直位置
 	    int iCGPosX   = iCGBlkPos - (iCGPosY * codingParameters.widthInGroups);//4*4的顺序扫描的水平位置
 
-	    /*if( iSubSet == iLastScanSet || iSubSet == 0)
+	    if( iSubSet == iLastScanSet || iSubSet == 0)
 	    {
 	      uiSigCoeffGroupFlag[ iCGBlkPos ] = true;
 	    }
-	    else*/
+	    else
 	    {
 	      boolean uiSigCoeffGroup   = (uiSigCoeffGroupFlag[ iCGBlkPos ] != false);
 	      int uiCtxSig  = TComTrQuant.getSigCoeffGroupCtxInc( uiSigCoeffGroupFlag, iCGPosX, iCGPosY, codingParameters.widthInGroups, codingParameters.heightInGroups );
@@ -145,6 +153,7 @@ public class TEncSbacV1_test{
 	      this.coded_sub_block_flag_buffer[0] = this.ENCODE_BIN;
 	      this.coded_sub_block_flag_buffer[1] = uiSigCoeffGroup?1:0;
 	      this.coded_sub_block_flag_buffer[2] = baseCoeffGroupCtxIdx +  uiCtxSig;
+	      this.buffer.add((long)this.coded_sub_block_flag_buffer[0] << 29  | this.coded_sub_block_flag_buffer[1] << 8  | this.coded_sub_block_flag_buffer[2]);
 	    }
 
 	    // encode significant_coeff_flag
@@ -164,6 +173,7 @@ public class TEncSbacV1_test{
 	          this.sig_coeff_flag_buffer[(iSubPos + 15 - iScanPosSig) * 3] = this.ENCODE_BIN;
 	          this.sig_coeff_flag_buffer[(iSubPos + 15 - iScanPosSig) * 3 + 1] = uiSig;
 	          this.sig_coeff_flag_buffer[(iSubPos + 15 - iScanPosSig) * 3 + 2] = baseCtxIdx+ uiCtxSig;
+	          this.buffer.add((long)this.sig_coeff_flag_buffer[(iSubPos + 15 - iScanPosSig) * 3] << 29 | this.sig_coeff_flag_buffer[(iSubPos + 15 - iScanPosSig) * 3 + 1] << 8 | this.sig_coeff_flag_buffer[(iSubPos + 15 - iScanPosSig) * 3 + 2]);
 	        }
 	        if( uiSig == 1)
 	        {
@@ -201,6 +211,7 @@ public class TEncSbacV1_test{
 			this.coeff_abs_level_greater1_flag_buffer[idx*3] = this.ENCODE_BIN;
 			this.coeff_abs_level_greater1_flag_buffer[idx*3+1] = uiSymbol;
 			this.coeff_abs_level_greater1_flag_buffer[idx*3+2] = baseCtxMod + c1;
+			this.buffer.add((long)this.coeff_abs_level_greater1_flag_buffer[idx*3] << 29 | this.coeff_abs_level_greater1_flag_buffer[idx*3+1] << 8 | this.coeff_abs_level_greater1_flag_buffer[idx*3+2]);
 			
 	        if( uiSymbol == 1)//isBranch1
 	        {
@@ -231,7 +242,7 @@ public class TEncSbacV1_test{
 	          this.coeff_abs_level_greater2_flag_buffer[0] = this.ENCODE_BIN;
 	          this.coeff_abs_level_greater2_flag_buffer[1] = symbol;
 	          this.coeff_abs_level_greater2_flag_buffer[2] = baseCtxMod;
-	          
+	          this.buffer.add((long)this.coeff_abs_level_greater2_flag_buffer[0] << 29 | this.coeff_abs_level_greater2_flag_buffer[1] << 8 | this.coeff_abs_level_greater2_flag_buffer[2]);
 	          if (symbol != 0)//isBranch6
 	          {
 	            escapeDataPresentInGroup = true;
@@ -244,6 +255,7 @@ public class TEncSbacV1_test{
 	      this.coeff_sign_flag_buffer[0] = this.ENCODE_BINS_EP;
 	      this.coeff_sign_flag_buffer[1] = coeffSigns;
 	      this.coeff_sign_flag_buffer[2] = numNonZero;
+	      this.buffer.add((long)this.coeff_sign_flag_buffer[0] << 29 | this.coeff_sign_flag_buffer[1] << 8 | this.coeff_sign_flag_buffer[2]);
 
 	      int iFirstCoeff2 = 1;
 	      if (escapeDataPresentInGroup)//在FPGA中不需要判断这个,当coeff_abs_level_greater1_flag不为零的个数大于1 || coeff_abs_level_greater2_flag==1 || numNonZero>8，此值为true
@@ -297,7 +309,9 @@ public class TEncSbacV1_test{
 	    this.coeff_abs_level_remaining_buffer[idx*6+3] = this.ENCODE_BINS_EP;
 	    this.coeff_abs_level_remaining_buffer[idx*6+4] = (codeNumber%(1<<rParam));
 	    this.coeff_abs_level_remaining_buffer[idx*6+5] = rParam;
-	    
+	    long part1 = (long)this.coeff_abs_level_remaining_buffer[idx*6+0] << 29 | this.coeff_abs_level_remaining_buffer[idx*6+1] << 8 | this.coeff_abs_level_remaining_buffer[idx*6+2];
+	    long part2 = (long)this.coeff_abs_level_remaining_buffer[idx*6+3] << 29 | this.coeff_abs_level_remaining_buffer[idx*6+4] << 8 | this.coeff_abs_level_remaining_buffer[idx*6+5];
+	    this.buffer.add(part1 << 32 | part2);
 	  }
 	  else if (useLimitedPrefixLength)
 	  {
@@ -349,6 +363,9 @@ public class TEncSbacV1_test{
 	    this.coeff_abs_level_remaining_buffer[idx*6+3] = this.ENCODE_BINS_EP;
 	    this.coeff_abs_level_remaining_buffer[idx*6+4] = codeNumber;
 	    this.coeff_abs_level_remaining_buffer[idx*6+5] = length;
+	    long part1 = (long)this.coeff_abs_level_remaining_buffer[idx*6+0] << 29 | this.coeff_abs_level_remaining_buffer[idx*6+1] << 8 | this.coeff_abs_level_remaining_buffer[idx*6+2];
+	    long part2 = (long)this.coeff_abs_level_remaining_buffer[idx*6+3] << 29 | this.coeff_abs_level_remaining_buffer[idx*6+4] << 8 | this.coeff_abs_level_remaining_buffer[idx*6+5];
+	    this.buffer.add(part1 << 32 | part2);
 	  }
 	}
 	
